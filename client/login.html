@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Login</title>
+        <link
+            href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css"
+            rel="stylesheet">
+    </head>
+    <body>
+        <div class="container">
+            <header class="text-center mb-4">
+                <h1 class="logo">Job Tracker</h1>
+            </header>
+            <div class="row justify-content-center align-items-center vh-100">
+                <div class="col-md-6">
+                    <div id="login-container" class="card rounded-lg shadow-lg">
+                        <div class="card-body">
+                            <h2 class="card-title text-center mb-4">Login</h2>
+                            <form id="login-form">
+                                <div class="form-group">
+                                    <input type="email" class="form-control"
+                                        id="email" placeholder="Email" required
+                                        autocomplete="email">
+                                </div>
+                                <div class="form-group">
+                                    <input type="password" class="form-control"
+                                        id="password" placeholder="Password"
+                                        autocomplete="current-password"
+                                        required>
+                                </div>
+                                <button type="submit"
+                                    class="btn btn-primary btn-block">Login</button>
+                            </form>
+                            <div id="response-message" class="message"
+                                style="display: none;"></div>
+                        </div>
+                    </div>
+                    <div class="text-center mt-3">
+                        <button class="btn btn-secondary"
+                            onclick="location.href='./signup.html'">Signup</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script
+            src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.4.0/axios.min.js"></script>
+        <script type="module" src="./login.js"></script>
+    </body>
+</html>

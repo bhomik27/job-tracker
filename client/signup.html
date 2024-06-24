@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Sign Up</title>
+        <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    </head>
+    <body>
+        <div class="container">
+            <header class="text-center my-4">
+                <h1 class="logo">Job Tracker</h1>
+            </header>
+            <div class="row justify-content-center align-items-center vh-100">
+                <div class="col-md-6">
+                    <div id="signup-container" class="card p-4 shadow">
+                        <h2 class="text-center mb-4">Sign Up</h2>
+                        <form id="signup-form">
+                            <div class="form-group">
+                                <input type="text" class="form-control"
+                                    id="name" placeholder="Name" required
+                                    autocomplete="name">
+                            </div>
+                            <div class="form-group">
+                                <input type="email" class="form-control"
+                                    id="email" placeholder="Email" required
+                                    autocomplete="email">
+                            </div>
+                            <div class="form-group">
+                                <input type="tel" class="form-control"
+                                    id="phone" placeholder="Phone Number"
+                                    required autocomplete="tel">
+                            </div>
+                            <div class="form-group">
+                                <input type="password" class="form-control"
+                                    id="password" placeholder="Password"
+                                    autocomplete="current-password" required>
+                            </div>
+                            <button type="submit" id="signup-btn"
+                                class="btn btn-primary btn-block">Sign Up</button>
+                        </form>
+                        <div id="response-message" class="message mt-3"
+                            style="display: none;"></div>
+                    </div>
+                    <div class="text-center mt-3">
+                        <button class="btn btn-secondary" id="login-btn"
+                            onclick="location.href='./login.html'">Login</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script
+            src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.4.0/axios.min.js"></script>
+        <script src="./signup.js"></script>
+    </body>
+</html>
