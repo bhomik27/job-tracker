@@ -2,26 +2,41 @@ document.addEventListener('DOMContentLoaded', () => {
     getAllReminders(); // Fetch reminders when the DOM is loaded
 
     const addReminderForm = document.getElementById('addReminderForm');
-    addReminderForm.addEventListener('submit', async (event) => {
-        event.preventDefault();
-
-        // Gather form data using FormData object
-        const formData = new FormData(addReminderForm);
-        const reminderData = {
-            company_name: formData.get('company_name'),
-            job_title: formData.get('job_title'),
-            notes: formData.get('notes'),
-            reminder_date: formData.get('reminder_date'),
-            reminder_time: formData.get('reminder_time')
-        };
-
-        await addReminder(reminderData); // Call function to add a new reminder
-    });
+    addReminderForm.addEventListener('submit', handleAddReminder);
 });
+
+const handleAddReminder = async (event) => {
+    event.preventDefault();
+
+    const formData = new FormData(addReminderForm);
+    const reminderData = {
+        company_name: formData.get('company_name'),
+        job_title: formData.get('job_title'),
+        notes: formData.get('notes'),
+        reminder_date: formData.get('reminder_date'),
+        reminder_time: formData.get('reminder_time')
+    };
+
+    try {
+        validateDateTime(reminderData.reminder_date, reminderData.reminder_time);
+        await addReminder(reminderData); // Call function to add a new reminder
+    } catch (error) {
+        console.error('Error adding reminder:', error);
+        alert('Failed to add reminder. Please check your input and try again.');
+    }
+};
+
+const validateDateTime = (date, time) => {
+    const dateTimeString = `${date}T${time}`;
+    const formattedDateTime = new Date(dateTimeString);
+    if (isNaN(formattedDateTime.getTime())) {
+        throw new Error('Invalid reminder date or time.');
+    }
+};
 
 const getAllReminders = async () => {
     try {
-        const token = localStorage.getItem('token');
+        const token = getToken();
         const response = await axios.get('http://localhost:3000/reminder/getAllReminders', {
             headers: {
                 'Authorization': token
@@ -37,7 +52,6 @@ const getAllReminders = async () => {
 
 const displayReminders = (reminders) => {
     const remindersTable = document.getElementById('remindersTable');
-    
     if (!remindersTable) {
         console.error('Reminders table element not found.');
         return;
@@ -46,32 +60,43 @@ const displayReminders = (reminders) => {
     remindersTable.innerHTML = ''; // Clear existing table rows
 
     reminders.forEach(reminder => {
-        const row = document.createElement('tr');
-
-        // Create table cells for each reminder property
-        const companyNameCell = createTableCell(reminder.company_name);
-        const jobTitleCell = createTableCell(reminder.job_title);
-        const notesCell = createTableCell(reminder.notes);
-        const reminderDateTimeCell = createTableCell(formatDateTime(reminder.reminder_date, reminder.reminder_time));
-
-        // Create Edit and Delete buttons for each reminder
-        const editButton = createButton('Edit', 'btn-primary', () => editReminder(reminder.id));
-        const deleteButton = createButton('Delete', 'btn-danger', () => deleteReminder(reminder.id));
-
-        const actionsCell = document.createElement('td');
-        actionsCell.appendChild(editButton);
-        actionsCell.appendChild(deleteButton);
-
-        // Append cells to the row and then append the row to the table
-        appendCellsToRow(row, [companyNameCell, jobTitleCell, notesCell, reminderDateTimeCell, actionsCell]);
+        const row = createReminderRow(reminder);
         remindersTable.appendChild(row);
     });
+};
+
+const createReminderRow = (reminder) => {
+    const row = document.createElement('tr');
+
+    // Create table cells for each reminder property
+    const cells = [
+        createTableCell(reminder.company_name),
+        createTableCell(reminder.job_title),
+        createTableCell(reminder.notes),
+        createTableCell(formatDate(reminder.reminder_date, reminder.reminder_time)),
+        createActionsCell(reminder.id)
+    ];
+
+    appendCellsToRow(row, cells);
+    return row;
 };
 
 const createTableCell = (text) => {
     const cell = document.createElement('td');
     cell.textContent = text;
     return cell;
+};
+
+const createActionsCell = (id) => {
+    const actionsCell = document.createElement('td');
+
+    const editButton = createButton('Edit', 'btn-primary', () => editReminder(id));
+    const deleteButton = createButton('Delete', 'btn-danger', () => deleteReminder(id));
+
+    actionsCell.appendChild(editButton);
+    actionsCell.appendChild(deleteButton);
+
+    return actionsCell;
 };
 
 const createButton = (text, className, onClick) => {
@@ -86,16 +111,14 @@ const appendCellsToRow = (row, cells) => {
     cells.forEach(cell => row.appendChild(cell));
 };
 
-const formatDateTime = (date, time) => {
-    const dateTimeString = `${date}T${time}`;
-    const formattedDateTime = new Date(dateTimeString);
-    return formattedDateTime.toLocaleString(); // Format date and time nicely
-};
+function formatDate(dateString) {
+    const options = { day: '2-digit', month: 'short', year: 'numeric' };
+    return new Date(dateString).toLocaleDateString('en-GB', options).replace(/ /g, '/');
+}
 
-// Handle POST request to add a new reminder
 const addReminder = async (reminderData) => {
     try {
-        const token = localStorage.getItem('token');
+        const token = getToken();
         const response = await axios.post('http://localhost:3000/reminder/add-reminder', reminderData, {
             headers: {
                 'Authorization': token
@@ -113,7 +136,7 @@ const addReminder = async (reminderData) => {
 
 const editReminder = async (id) => {
     try {
-        const token = localStorage.getItem('token');
+        const token = getToken();
         const response = await axios.get(`http://localhost:3000/reminder/getReminder/${id}`, {
             headers: {
                 'Authorization': token
@@ -123,36 +146,48 @@ const editReminder = async (id) => {
         const reminder = response.data;
 
         // Pre-fill form fields with current reminder details
-        document.getElementById('company-name').value = reminder.company_name;
-        document.getElementById('job-title').value = reminder.job_title;
-        document.getElementById('notes').value = reminder.notes;
-        document.getElementById('reminder-date').value = reminder.reminder_date;
-        document.getElementById('reminder-time').value = reminder.reminder_time;
+        fillFormFields(reminder);
 
         // Prompt for new values for all fields
-        const newCompanyName = prompt('Enter new company name (or leave blank to keep current):', reminder.company_name) || reminder.company_name;
-        const newJobTitle = prompt('Enter new job title (or leave blank to keep current):', reminder.job_title) || reminder.job_title;
-        const newNotes = prompt('Enter new notes (or leave blank to keep current):', reminder.notes) || reminder.notes;
-        const newReminderDate = prompt('Enter new reminder date (YYYY-MM-DD) (or leave blank to keep current):', reminder.reminder_date) || reminder.reminder_date;
-        const newReminderTime = prompt('Enter new reminder time (HH:MM) (or leave blank to keep current):', reminder.reminder_time) || reminder.reminder_time;
+        const newReminderData = promptForNewValues(reminder);
 
-        // Update the reminder with the new values
-        const updateData = {
-            company_name: newCompanyName,
-            job_title: newJobTitle,
-            notes: newNotes,
-            reminder_date: newReminderDate,
-            reminder_time: newReminderTime
-        };
+        // Validate and update the reminder with the new values
+        validateDateTime(newReminderData.reminder_date, newReminderData.reminder_time);
+        await updateReminder(id, newReminderData);
+    } catch (error) {
+        console.error('Error updating reminder:', error);
+        alert('Failed to update reminder. Please try again.');
+    }
+};
 
-        const updateResponse = await axios.put(`http://localhost:3000/reminder/edit-reminder/${id}`, updateData, {
+const fillFormFields = (reminder) => {
+    document.getElementById('company-name').value = reminder.company_name;
+    document.getElementById('job-title').value = reminder.job_title;
+    document.getElementById('notes').value = reminder.notes;
+    document.getElementById('reminder-date').value = reminder.reminder_date;
+    document.getElementById('reminder-time').value = reminder.reminder_time;
+};
+
+const promptForNewValues = (reminder) => {
+    return {
+        company_name: prompt('Enter new company name (or leave blank to keep current):', reminder.company_name) || reminder.company_name,
+        job_title: prompt('Enter new job title (or leave blank to keep current):', reminder.job_title) || reminder.job_title,
+        notes: prompt('Enter new notes (or leave blank to keep current):', reminder.notes) || reminder.notes,
+        reminder_date: prompt('Enter new reminder date (YYYY-MM-DD) (or leave blank to keep current):', reminder.reminder_date) || reminder.reminder_date,
+        reminder_time: prompt('Enter new reminder time (HH:MM) (or leave blank to keep current):', reminder.reminder_time) || reminder.reminder_time
+    };
+};
+
+const updateReminder = async (id, reminderData) => {
+    try {
+        const token = getToken();
+        const response = await axios.put(`http://localhost:3000/reminder/edit-reminder/${id}`, reminderData, {
             headers: {
                 'Authorization': token
             }
         });
 
-        console.log(updateResponse);
-
+        console.log(response);
         alert('Reminder updated successfully!');
         clearFormFields(); // Clear form fields after successful update
         getAllReminders(); // Refresh reminders list after update
@@ -162,19 +197,17 @@ const editReminder = async (id) => {
     }
 };
 
-
-
 const deleteReminder = async (id) => {
     if (!confirm('Are you sure you want to delete this reminder?')) return;
 
     try {
-        const token = localStorage.getItem('token');
+        const token = getToken();
         await axios.delete(`http://localhost:3000/reminder/delete-reminder/${id}`, {
             headers: {
                 'Authorization': token
             }
         });
-        
+
         alert('Reminder deleted successfully!');
         getAllReminders(); // Refresh reminders list after deletion
     } catch (error) {
@@ -190,4 +223,8 @@ const clearFormFields = () => {
     document.getElementById('notes').value = '';
     document.getElementById('reminder-date').value = '';
     document.getElementById('reminder-time').value = '';
+};
+
+const getToken = () => {
+    return localStorage.getItem('token');
 };

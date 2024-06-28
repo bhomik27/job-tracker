@@ -21,7 +21,7 @@ const Reminder = sequelize.define('Reminder', {
         allowNull: true
     },
     reminder_date: {
-        type: Sequelize.DATEONLY,
+        type: Sequelize.DATE,
         allowNull: false
     },
     reminder_time: {

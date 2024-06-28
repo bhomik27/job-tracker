@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Display success alert
             alert("User signup successful!");
-            window.location.href = "../login.html";
+            window.location.href = "./login.html";
 
         } catch (error) {
             // Handle errors

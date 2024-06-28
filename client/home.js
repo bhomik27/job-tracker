@@ -1,5 +1,12 @@
+let jobLogsCache = []; // Cache to store all job logs
+let currentPage = 1;
+const limit = 10;
+
 document.addEventListener('DOMContentLoaded', async (event) => {
     await fetchJobLogs();
+    document.getElementById('search-input').addEventListener('input', handleSearch);
+    document.getElementById('filter-status').addEventListener('change', applyFilters);
+    document.getElementById('sort-by').addEventListener('change', applyFilters);
 });
 
 async function addJob() {
@@ -32,7 +39,6 @@ async function addJob() {
     }
 }
 
-
 async function fetchJobLogs() {
     try {
         const token = localStorage.getItem('token');
@@ -42,13 +48,51 @@ async function fetchJobLogs() {
             }
         });
 
-        const jobs = response.data;
-        jobs.forEach(job => {
-            addJobToTable(job);
-        });
+        jobLogsCache = response.data; // Cache all job logs
+        renderJobLogs(jobLogsCache); // Render all job logs
     } catch (error) {
         console.error('There was an error fetching the job logs!', error);
     }
+}
+
+function handleSearch() {
+    applyFilters();
+}
+
+function applyFilters() {
+    const searchTerm = document.getElementById('search-input').value.toLowerCase();
+    const statusFilter = document.getElementById('filter-status').value;
+    const sortBy = document.getElementById('sort-by').value;
+
+    let filteredJobs = jobLogsCache.filter(job =>
+        job.companyName.toLowerCase().includes(searchTerm) ||
+        job.jobTitle.toLowerCase().includes(searchTerm)
+    );
+
+    if (statusFilter) {
+        filteredJobs = filteredJobs.filter(job => job.jobStatus === statusFilter);
+    }
+
+    if (sortBy) {
+        filteredJobs.sort((a, b) => {
+            if (sortBy === 'companyName') {
+                return a.companyName.localeCompare(b.companyName);
+            } else if (sortBy === 'dateApplied') {
+                return new Date(b.dateApplied) - new Date(a.dateApplied);
+            }
+        });
+    }
+
+    renderJobLogs(filteredJobs); // Render filtered and sorted job logs
+}
+
+function renderJobLogs(jobs) {
+    const jobList = document.getElementById('job-list');
+    jobList.innerHTML = ''; // Clear existing rows
+
+    jobs.forEach(job => {
+        addJobToTable(job);
+    });
 }
 
 function formatDate(dateString) {
@@ -66,7 +110,8 @@ function addJobToTable(job) {
     const formattedDate = formatDate(job.dateApplied);
 
     const newRow = document.createElement('tr');
-    newRow.setAttribute('data-id', job.id);
+    newRow.setAttribute('data-id', job.id); // Add data-id attribute to store the job id
+
     newRow.innerHTML = `
         <td>${job.companyName}</td>
         <td>${job.jobTitle}</td>
@@ -74,33 +119,51 @@ function addJobToTable(job) {
         <td>${job.notes}</td>
         <td>${formattedDate}</td>
         <td>
-            <button class="btn btn-primary btn-sm edit-btn" data-id="${job.id}">Edit</button>
-            <button class="btn btn-danger btn-sm delete-btn" data-id="${job.id}">Delete</button>
+            <button type="button" class="btn btn-danger btn-sm" onclick="deleteJob(${job.id})">Delete</button>
+            <button type="button" class="btn btn-primary btn-sm" onclick="editJob(${job.id})">Edit</button>
         </td>
     `;
 
     document.getElementById('job-list').appendChild(newRow);
-
-    newRow.querySelector('.edit-btn').addEventListener('click', () => editJob(job));
-    newRow.querySelector('.delete-btn').addEventListener('click', () => deleteJob(job.id));
 }
 
+async function deleteJob(jobId) {
+    try {
+        const token = localStorage.getItem('token');
+        await axios.delete(`http://localhost:3000/home/jobs/${jobId}`, {
+            headers: {
+                'Authorization': token
+            }
+        });
 
-function editJob(job) {
-    document.getElementById('company-name').value = job.companyName;
-    document.getElementById('job-title').value = job.jobTitle;
-    document.getElementById('job-status').value = job.jobStatus;
-    document.getElementById('notes').value = job.notes;
-
-    // Format the date to yyyy-MM-dd for the input field
-    const dateApplied = new Date(job.dateApplied).toISOString().split('T')[0];
-    document.getElementById('date-applied').value = dateApplied;
-
-    const saveButton = document.getElementById('save-button');
-    saveButton.textContent = 'Update';
-    saveButton.onclick = () => updateJob(job.id);
+        // Remove the job from the cache and re-render the table
+        jobLogsCache = jobLogsCache.filter(job => job.id !== jobId);
+        renderJobLogs(jobLogsCache);
+    } catch (error) {
+        console.error('There was an error deleting the job!', error);
+    }
 }
 
+function editJob(jobId) {
+    const job = jobLogsCache.find(job => job.id === jobId);
+    if (job) {
+        document.getElementById('company-name').value = job.companyName;
+        document.getElementById('job-title').value = job.jobTitle;
+        document.getElementById('job-status').value = job.jobStatus;
+        document.getElementById('notes').value = job.notes;
+        document.getElementById('date-applied').value = job.dateApplied; // Assuming the format is yyyy-MM-dd
+
+        // Scroll to the form
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+        // Replace the 'Save' button with an 'Update' button
+        const saveButton = document.getElementById('save-button');
+        saveButton.textContent = 'Update';
+        saveButton.onclick = async function () {
+            await updateJob(jobId);
+        };
+    }
+}
 
 async function updateJob(jobId) {
     const companyName = document.getElementById('company-name').value;
@@ -119,15 +182,20 @@ async function updateJob(jobId) {
 
     try {
         const token = localStorage.getItem('token');
-        await axios.put(`http://localhost:3000/home/editJob/${jobId}`, jobData, {
+        const response = await axios.put(`http://localhost:3000/home/jobs/${jobId}`, jobData, {
             headers: {
                 'Authorization': token
             }
         });
 
-        await fetchJobLogs();
+        // Update the job in the cache and re-render the table
+        const index = jobLogsCache.findIndex(job => job.id === jobId);
+        jobLogsCache[index] = response.data;
+        renderJobLogs(jobLogsCache);
+
         document.getElementById('job-form').reset();
 
+        // Replace the 'Update' button with the original 'Save' button
         const saveButton = document.getElementById('save-button');
         saveButton.textContent = 'Save';
         saveButton.onclick = addJob;
@@ -135,36 +203,3 @@ async function updateJob(jobId) {
         console.error('There was an error updating the job!', error);
     }
 }
-
-
-async function deleteJob(jobId) {
-    try {
-        const token = localStorage.getItem('token');
-        await axios.delete(`http://localhost:3000/home/deleteJob/${jobId}`, {
-            headers: {
-                'Authorization': token
-            }
-        });
-
-        document.getElementById('job-list').innerHTML = '';
-        await fetchJobLogs();
-    } catch (error) {
-        console.error('There was an error deleting the job!', error);
-    }
-}
-
-
-async function sendReminders() {
-    try {
-        const token = localStorage.getItem('token');
-        await axios.post('http://localhost:3000/home/sendReminders', {}, {
-            headers: {
-                'Authorization': token
-            }
-        });
-        alert('Reminders sent successfully!');
-    } catch (error) {
-        console.error('There was an error sending the reminders!', error);
-    }
-}
-
