@@ -1,10 +1,11 @@
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const { Sequelize, Op } = require('sequelize'); // Import Sequelize and Op
+const { Sequelize, Op } = require('sequelize'); 
 const sequelize = require('./server/util/database');
 const cron = require('node-cron');
 require('dotenv').config();
+const axios = require('axios');
 
 const app = express();
 
@@ -20,6 +21,28 @@ const reminderRoutes = require('./server/routes/reminder');
 app.use('/user', userRoutes);
 app.use('/home', jobLogRoutes);
 app.use('/reminder', reminderRoutes);
+
+
+
+// Add the jobs route
+app.get('/api/jobs', async (req, res) => {
+    try {
+        const response = await axios.get('https://api.adzuna.com/v1/api/jobs/us/search/1', {
+            params: {
+                app_id: process.env.ADZUNA_APP_ID,
+                app_key: process.env.ADZUNA_APP_KEY,
+                results_per_page: 50
+            }
+        });
+        res.json(response.data);
+    } catch (error) {
+        console.error('Error fetching jobs:', error);
+        res.status(500).send('Error fetching jobs');
+    }
+});
+
+
+
 
 // Sequelize associations
 const User = require('./server/models/user');
@@ -58,7 +81,7 @@ cron.schedule('* * * * *', async () => {
                 const { company_name, job_title, notes } = reminder;
 
                 // Implement reminder sending logic here
-                console.log(`Sending reminder email for ${job_title} at ${company_name}`);
+                console.log(`Sending reminder email for ${job_title} at ${company_name},  ${notes}`);
 
             } catch (error) {
                 console.error('Error sending reminder email:', error);
