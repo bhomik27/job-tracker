@@ -2,6 +2,7 @@ const cron = require('node-cron');
 const { Op } = require('sequelize');
 const SibApiV3Sdk = require('sib-api-v3-sdk');
 const Reminder = require('../models/reminders');
+const User = require('../models/user'); // Adjust the path according to your project structure
 require('dotenv').config();
 
 // Initialize SendinBlue API client
@@ -26,19 +27,28 @@ cron.schedule('* * * * *', async () => {
 
         reminders.forEach(async (reminder) => {
             try {
-                const { company_name, job_title, notes } = reminder;
+                const { company_name, job_title, notes, UserId } = reminder;
+
+                // Fetch logged-in user's email dynamically
+                const user = await User.findByPk(UserId);
+                if (!user) {
+                    console.error('User not found for reminder:', reminder.id);
+                    return;
+                }
+
+                const recipientEmail = user.email; // Use logged-in user's email
 
                 // Send email reminder using SendinBlue
                 const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
                 sendSmtpEmail.subject = `Reminder: ${job_title} at ${company_name}`;
                 sendSmtpEmail.htmlContent = `<html><body><p>Reminder for ${job_title} at ${company_name}.</p><p>Notes: ${notes}</p></body></html>`;
                 sendSmtpEmail.sender = { name: 'Job Tracker', email: 'bhomikmaheshwari27@gmail.com' }; // Update sender details
-                sendSmtpEmail.to = [{ email: 'bhomikmaheshwari27@gmail.com', name: 'Job-Tracker' }]; // Update recipient details
+                sendSmtpEmail.to = [{ email: recipientEmail, name: 'Job-Tracker' }]; // Update recipient details
 
                 // Send email using SendinBlue API
                 await apiInstance.sendTransacEmail(sendSmtpEmail);
 
-                console.log(`Reminder email sent for ${job_title} at ${company_name}`);
+                console.log(`Reminder email sent for ${job_title} at ${company_name} to ${recipientEmail}`);
             } catch (error) {
                 console.error('Error sending reminder email:', error);
             }
@@ -52,25 +62,31 @@ cron.schedule('* * * * *', async () => {
 const addReminder = async (req, res) => {
     try {
         const { company_name, job_title, notes, reminder_date, reminder_time } = req.body;
+
+        // Fetch logged-in user's email dynamically
+        const userId = req.user.id; // Assuming req.user contains the logged-in user's details
+        const user = await User.findByPk(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
         const newReminder = await Reminder.create({
             company_name,
             job_title,
             notes,
             reminder_date,
-            reminder_time
+            reminder_time,
+            UserId: user.id, // Associate the reminder with the logged-in user
         });
 
         // Send email reminder using SendinBlue
         const sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-
         sendSmtpEmail.subject = `Reminder: ${job_title} at ${company_name}`;
         sendSmtpEmail.htmlContent = `<html><body><p>Reminder for ${job_title} at ${company_name}.</p><p>Notes: ${notes}</p></body></html>`;
         sendSmtpEmail.sender = { name: 'Job Tracker', email: 'bhomikmaheshwari27@gmail.com' };
 
-        // Fetch recipient email dynamically from your reminder data
-        const recipientEmail = 'bhomikmaheshwari27@gmail.com'; // Replace with actual dynamic email fetching logic
-
-        sendSmtpEmail.to = [{ email: recipientEmail, name: 'Recipient Name' }];
+        // Use logged-in user's email as recipient
+        sendSmtpEmail.to = [{ email: user.email, name: 'Recipient Name' }];
 
         // Send email using SendinBlue API
         await apiInstance.sendTransacEmail(sendSmtpEmail);

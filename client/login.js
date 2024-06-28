@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', function () {
             // Store the token, userId, and name in localStorage
             localStorage.setItem('token', response.data.token);
             localStorage.setItem('userId', response.data.userId);
-            localStorage.setItem('name', response.data.name); // Store the user's name
+            localStorage.setItem('name', response.data.name); 
 
             alert(`${response.data.name} login successfull`);
 
